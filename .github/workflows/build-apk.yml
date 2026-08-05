@@ -1,4 +1,4 @@
-name: Build ESF06 APK base
+name: Build and test ESF06 APK base
 
 on:
   pull_request:
@@ -50,6 +50,35 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
           unzip -t app/build/outputs/apk/debug/app-debug.apk
           sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/SHA256.txt
+
+      - name: Enable KVM
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install and open on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_7
+          working-directory: esf06-visitas-android
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb logcat -c
+            adb shell am force-stop com.esf06.visitas
+            adb shell am start -W -n com.esf06.visitas/.MainActivity
+            sleep 5
+            adb shell dumpsys activity activities | grep -q 'com.esf06.visitas/.MainActivity'
+            if adb logcat -d | grep -E 'FATAL EXCEPTION|VerifyError|ClassNotFoundException.*com\.esf06\.visitas'; then
+              echo 'Fatal Android startup error detected'
+              exit 1
+            fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
