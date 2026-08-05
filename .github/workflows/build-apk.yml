@@ -75,10 +75,7 @@ jobs:
             adb shell am start -W -n com.esf06.visitas/.MainActivity
             sleep 5
             adb shell dumpsys activity activities | grep -q 'com.esf06.visitas/.MainActivity'
-            if adb logcat -d | grep -E 'FATAL EXCEPTION|VerifyError|ClassNotFoundException.*com\.esf06\.visitas'; then
-              echo 'Fatal Android startup error detected'
-              exit 1
-            fi
+            if adb logcat -d | grep -E 'FATAL EXCEPTION|VerifyError|ClassNotFoundException.*com\.esf06\.visitas'; then echo 'Fatal Android startup error detected'; exit 1; else echo 'No fatal startup errors detected'; fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
